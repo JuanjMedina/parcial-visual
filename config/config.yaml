@@ -81,16 +81,22 @@ frame_reader:
 
 # Configuración del grabador de GIFs
 recorder:
-  # Configuración de GIF
-  gif_duration: 5.0  # Duración en segundos
-  gif_fps: 10
-  gif_quality: 80  # Calidad de compresión (1-100)
+  # Configuración básica de GIF
+  gif_fps: 8                    # FPS del GIF (menor = archivo más pequeño)
+  gif_quality: 75               # Calidad de compresión (1-100)
+  gif_width: 640               # Ancho del GIF en píxeles
+  gif_height: 480              # Alto del GIF en píxeles
   
-  # Configuración de video output
-  output_fps: 30
-  output_codec: "mp4v"
+  # Duración de grabación
+  max_gif_duration: 10.0       # Duración máxima en segundos
+  min_gif_duration: 2.0        # Duración mínima en segundos
   
-  # Auto-grabado
+  # Optimizaciones para tamaño de archivo
+  frame_skip: 3                # Tomar 1 de cada N frames
+  reduce_colors: true          # Reducir paleta de colores
+  optimize_gif: true           # Aplicar optimizaciones avanzadas
+  
+  # Auto-grabado inteligente
   auto_record_interesting_scenes: true
   min_objects_for_recording: 2  # Mínimo de objetos para empezar grabación automática
 

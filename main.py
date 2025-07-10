@@ -91,10 +91,10 @@ class ObjectTrackingSystem:
             print("❌ Error inicializando fuente de video")
             return
         
-        # Iniciar grabación si está habilitado
+        # Iniciar grabación de GIF si está habilitado
         if record_video:
             timestamp = time.strftime("%Y%m%d_%H%M%S")
-            self.recorder.start_video_recording(f"session_{timestamp}.mp4")
+            self.recorder.start_recording(f"session_{timestamp}.gif")
         
         self.is_running = True
         self.start_time = time.time()
@@ -126,15 +126,19 @@ class ObjectTrackingSystem:
                     elif key == ord('r'):
                         if not self.recorder.is_recording:
                             timestamp = time.strftime("%H%M%S")
-                            self.recorder.start_video_recording(f"manual_{timestamp}.mp4")
-                            print("🔴 Grabación manual iniciada")
+                            self.recorder.start_recording(f"manual_{timestamp}.gif")
+                            print("🔴 Grabación manual de GIF iniciada")
                         else:
-                            self.recorder.stop_video_recording()
-                            print("⏹️ Grabación manual detenida")
+                            gif_path = self.recorder.stop_recording()
+                            if gif_path:
+                                print(f"⏹️ GIF guardado: {gif_path}")
                     elif key == ord('g'):
-                        gif_path = self.recorder.create_gif_from_buffer()
-                        if gif_path:
-                            print(f"🎞️ GIF creado: {gif_path}")
+                        # Crear GIF desde frames del buffer automático
+                        if hasattr(self.recorder, 'auto_record_buffer') and self.recorder.auto_record_buffer:
+                            frames = [item[0] for item in list(self.recorder.auto_record_buffer)]
+                            gif_path = self.recorder.create_gif_from_frames(frames)
+                            if gif_path:
+                                print(f"🎞️ GIF instantáneo creado: {gif_path}")
                     elif key == ord('s'):
                         self._print_statistics()
                 
@@ -232,8 +236,8 @@ class ObjectTrackingSystem:
         print(f"📏 Distancia total: {metrics_stats['total_distance_m']:.1f}m")
         
         recorder_stats = self.recorder.get_statistics()
-        print(f"🎬 Videos creados: {recorder_stats['videos_created']}")
         print(f"🎞️ GIFs creados: {recorder_stats['gifs_created']}")
+        print(f"📊 Frames totales grabados: {recorder_stats['total_frames_recorded']}")
         print("=" * 50)
     
     def _cleanup(self) -> None:
@@ -244,14 +248,16 @@ class ObjectTrackingSystem:
         
         # Detener grabación si está activa
         if self.recorder.is_recording:
-            video_path = self.recorder.stop_video_recording()
-            if video_path:
-                print(f"💾 Video final guardado: {video_path}")
+            gif_path = self.recorder.stop_recording()
+            if gif_path:
+                print(f"💾 GIF final guardado: {gif_path}")
         
-        # Crear GIF final si hay buffer
-        final_gif = self.recorder.create_gif_from_buffer("session_final.gif")
-        if final_gif:
-            print(f"🎞️ GIF final creado: {final_gif}")
+        # Crear GIF final del buffer automático si hay contenido
+        if hasattr(self.recorder, 'auto_record_buffer') and self.recorder.auto_record_buffer:
+            frames = [item[0] for item in list(self.recorder.auto_record_buffer)]
+            final_gif = self.recorder.create_gif_from_frames(frames, "session_final.gif")
+            if final_gif:
+                print(f"🎞️ GIF final creado: {final_gif}")
         
         # Liberar recursos
         self.frame_reader.release()
@@ -294,10 +300,8 @@ def main():
         if args.pixels_per_meter:
             config.update('metrics.pixels_per_meter', args.pixels_per_meter)
         
-        # Convertir source a entero si es numérico
+        # Preparar source (mantener como string, se manejará internamente)
         source = args.source
-        if source and source.isdigit():
-            source = int(source)
         
         # Crear y ejecutar sistema
         system = ObjectTrackingSystem(source=source, output_dir=args.output)

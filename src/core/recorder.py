@@ -2,8 +2,8 @@
 Grabador - Recorder
 ==================
 
-Este módulo maneja la grabación de videos, creación de GIFs
-y exportación de resultados para documentación.
+Este módulo maneja la grabación directa de GIFs animados
+para documentación y análisis de resultados.
 """
 
 import cv2
@@ -24,17 +24,17 @@ except ImportError:
 from ..utils.config_loader import get_config
 
 
-class Recorder:
+class GifRecorder:
     """
-    Grabador de video y creador de GIFs.
+    Grabador de GIFs animados optimizado.
     
     Permite capturar segmentos interesantes del procesamiento
-    y exportarlos como videos o GIFs para documentación.
+    y exportarlos directamente como GIFs optimizados para documentación.
     """
     
     def __init__(self, output_dir: str = "output"):
         """
-        Inicializa el grabador.
+        Inicializa el grabador de GIFs.
         
         Args:
             output_dir: Directorio de salida
@@ -47,45 +47,61 @@ class Recorder:
         
         # Estado de grabación
         self.is_recording = False
-        self.current_video_writer = None
-        self.current_video_path = None
+        self.current_gif_path = None
+        self.current_gif_filename = None
         
-        # Buffer para GIFs
-        self.gif_buffer = deque(maxlen=int(self.gif_fps * self.gif_duration))
+        # Buffer para grabación actual
+        self.recording_buffer = deque(maxlen=int(self.gif_fps * self.max_gif_duration))
         self.auto_record_buffer = deque(maxlen=150)  # ~5 segundos a 30fps
         
+        # Control de frame skipping
+        self.frames_skipped = 0
+        
         # Estadísticas
-        self.videos_created = 0
         self.gifs_created = 0
         self.total_frames_recorded = 0
         
-        print(f"📹 Grabador inicializado:")
+        print(f"🎞️ Grabador de GIFs inicializado:")
         print(f"   📁 Directorio: {self.output_dir}")
         print(f"   🎬 Auto-grabado: {self.auto_record_scenes}")
+        print(f"   ⚙️ Resolución GIF: {self.gif_width}x{self.gif_height}")
+        print(f"   🎯 FPS: {self.gif_fps} | Calidad: {self.gif_quality}%")
     
     def _load_config(self) -> None:
-        """Carga la configuración del grabador."""
-        self.gif_duration = get_config('recorder.gif_duration', 5.0)
-        self.gif_fps = get_config('recorder.gif_fps', 10)
-        self.gif_quality = get_config('recorder.gif_quality', 80)
+        """Carga la configuración del grabador de GIFs."""
+        # Configuración de GIFs
+        self.gif_fps = get_config('recorder.gif_fps', 8)
+        self.gif_quality = get_config('recorder.gif_quality', 75)
+        self.gif_width = get_config('recorder.gif_width', 640)
+        self.gif_height = get_config('recorder.gif_height', 480)
         
-        self.output_fps = get_config('recorder.output_fps', 30)
-        self.output_codec = get_config('recorder.output_codec', 'mp4v')
+        # Duración máxima de GIFs (para evitar archivos muy grandes)
+        self.max_gif_duration = get_config('recorder.max_gif_duration', 10.0)
+        self.min_gif_duration = get_config('recorder.min_gif_duration', 2.0)
         
+        # Auto-grabación
         self.auto_record_scenes = get_config('recorder.auto_record_interesting_scenes', True)
         self.min_objects_for_recording = get_config('recorder.min_objects_for_recording', 2)
+        
+        # Optimización para GIFs
+        self.frame_skip = get_config('recorder.frame_skip', 3)  # Tomar 1 de cada N frames
+        self.reduce_colors = get_config('recorder.reduce_colors', True)
+        self.optimize_gif = get_config('recorder.optimize_gif', True)
     
-    def start_video_recording(self, filename: Optional[str] = None, frame_size: Optional[Tuple[int, int]] = None) -> bool:
+    def start_recording(self, filename: Optional[str] = None) -> bool:
         """
-        Inicia la grabación de video.
+        Inicia la grabación de GIF.
         
         Args:
             filename: Nombre del archivo (auto-generado si es None)
-            frame_size: Tamaño del frame (detectado automáticamente si es None)
             
         Returns:
             True si se inició exitosamente
         """
+        if not IMAGEIO_AVAILABLE:
+            print("❌ imageio no está disponible para crear GIFs")
+            return False
+            
         if self.is_recording:
             print("⚠️ Ya hay una grabación en curso")
             return False
@@ -93,82 +109,133 @@ class Recorder:
         # Generar nombre de archivo
         if filename is None:
             timestamp = time.strftime("%Y%m%d_%H%M%S")
-            filename = f"tracking_video_{timestamp}.mp4"
+            filename = f"tracking_{timestamp}.gif"
         
-        self.current_video_path = self.output_dir / filename
+        # Asegurar extensión .gif
+        if not filename.endswith('.gif'):
+            filename = filename.rsplit('.', 1)[0] + '.gif'
         
-        # Configurar VideoWriter (se inicializará con el primer frame)
-        self.frame_size = frame_size
+        self.current_gif_filename = filename
+        self.current_gif_path = self.output_dir / filename
+        
+        # Limpiar buffer de grabación
+        self.recording_buffer.clear()
         self.is_recording = True
+        self.frames_skipped = 0
         
-        print(f"🎬 Grabación iniciada: {filename}")
+        print(f"🎞️ Grabación de GIF iniciada: {filename}")
+        print(f"   📏 Resolución: {self.gif_width}x{self.gif_height}")
+        print(f"   ⏱️ FPS: {self.gif_fps}")
         return True
     
     def record_frame(self, frame: np.ndarray) -> None:
         """
-        Graba un frame al video actual.
+        Graba un frame al GIF actual.
         
         Args:
             frame: Frame a grabar
         """
-        if not self.is_recording:
+        if not self.is_recording or not IMAGEIO_AVAILABLE:
             return
         
-        # Inicializar VideoWriter si es necesario
-        if self.current_video_writer is None:
-            height, width = frame.shape[:2]
-            fourcc = cv2.VideoWriter_fourcc(*self.output_codec)
-            
-            self.current_video_writer = cv2.VideoWriter(
-                str(self.current_video_path),
-                fourcc,
-                self.output_fps,
-                (width, height)
-            )
-            
-            if not self.current_video_writer.isOpened():
-                print(f"❌ Error inicializando VideoWriter")
-                self.stop_video_recording()
-                return
+        # Aplicar frame skipping para optimizar el GIF
+        self.frames_skipped += 1
+        if self.frames_skipped < self.frame_skip:
+            return
         
-        # Escribir frame
-        self.current_video_writer.write(frame)
+        self.frames_skipped = 0
+        
+        # Procesar frame para GIF
+        processed_frame = self._process_frame_for_gif(frame)
+        
+        # Agregar al buffer de grabación
+        self.recording_buffer.append(processed_frame)
         self.total_frames_recorded += 1
         
-        # Agregar al buffer de GIF
-        if len(self.gif_buffer) == 0 or len(self.gif_buffer) % (30 // self.gif_fps) == 0:
-            # Reducir resolución para GIF
-            gif_frame = cv2.resize(frame, (640, 360))
-            self.gif_buffer.append(gif_frame)
+        # Si el buffer está lleno, detener grabación automáticamente
+        max_frames = int(self.gif_fps * self.max_gif_duration)
+        if len(self.recording_buffer) >= max_frames:
+            print(f"⚠️ Duración máxima alcanzada ({self.max_gif_duration}s), finalizando grabación...")
+            self.stop_recording()
     
-    def stop_video_recording(self) -> Optional[str]:
+    def _process_frame_for_gif(self, frame: np.ndarray) -> np.ndarray:
         """
-        Detiene la grabación de video.
+        Procesa un frame para optimizarlo para GIF.
+        
+        Args:
+            frame: Frame original
+            
+        Returns:
+            Frame procesado
+        """
+        # Redimensionar a resolución del GIF
+        processed_frame = cv2.resize(frame, (self.gif_width, self.gif_height))
+        
+        # Reducir colores si está habilitado
+        if self.reduce_colors:
+            # Convertir a espacio de color más limitado para reducir tamaño
+            processed_frame = cv2.convertScaleAbs(processed_frame, alpha=0.9, beta=10)
+        
+        return processed_frame
+    
+    def stop_recording(self) -> Optional[str]:
+        """
+        Detiene la grabación de GIF y guarda el archivo.
         
         Returns:
             Ruta del archivo creado o None si hubo error
         """
-        if not self.is_recording:
+        if not self.is_recording or not IMAGEIO_AVAILABLE:
             return None
         
         self.is_recording = False
         
-        if self.current_video_writer is not None:
-            self.current_video_writer.release()
-            self.current_video_writer = None
-            
-            self.videos_created += 1
-            print(f"✅ Video guardado: {self.current_video_path}")
-            
-            return str(self.current_video_path)
+        # Verificar duración mínima
+        duration = len(self.recording_buffer) / self.gif_fps
+        if duration < self.min_gif_duration:
+            print(f"⚠️ Grabación muy corta ({duration:.1f}s), mínimo {self.min_gif_duration}s")
+            return None
         
-        return None
+        # Verificar que hay frames
+        if len(self.recording_buffer) == 0:
+            print("⚠️ No hay frames para guardar")
+            return None
+        
+        try:
+            # Convertir frames a RGB
+            frames_rgb = []
+            for frame in self.recording_buffer:
+                frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                frames_rgb.append(frame_rgb)
+            
+            # Crear GIF con optimizaciones
+            imageio.mimsave(
+                str(self.current_gif_path),
+                frames_rgb,
+                fps=self.gif_fps,
+                quantizer='nq' if self.optimize_gif else 'wu',
+                palettesize=256 if self.reduce_colors else 256,
+                subrectangles=self.optimize_gif
+            )
+            
+            self.gifs_created += 1
+            file_size = self.current_gif_path.stat().st_size / 1024 / 1024  # MB
+            
+            print(f"✅ GIF guardado: {self.current_gif_filename}")
+            print(f"   📊 {len(self.recording_buffer)} frames | {duration:.1f}s | {file_size:.1f}MB")
+            
+            return str(self.current_gif_path)
+            
+        except Exception as e:
+            print(f"❌ Error guardando GIF: {e}")
+            return None
     
-    def create_gif_from_buffer(self, filename: Optional[str] = None) -> Optional[str]:
+    def create_gif_from_frames(self, frames: List[np.ndarray], filename: Optional[str] = None) -> Optional[str]:
         """
-        Crea un GIF del buffer actual.
+        Crea un GIF directamente desde una lista de frames.
         
         Args:
+            frames: Lista de frames
             filename: Nombre del archivo (auto-generado si es None)
             
         Returns:
@@ -178,22 +245,27 @@ class Recorder:
             print("❌ imageio no disponible para crear GIFs")
             return None
         
-        if len(self.gif_buffer) == 0:
-            print("⚠️ Buffer de GIF vacío")
+        if not frames:
+            print("⚠️ Lista de frames vacía")
             return None
         
         # Generar nombre de archivo
         if filename is None:
             timestamp = time.strftime("%Y%m%d_%H%M%S")
-            filename = f"tracking_gif_{timestamp}.gif"
+            filename = f"custom_gif_{timestamp}.gif"
+        
+        # Asegurar extensión .gif
+        if not filename.endswith('.gif'):
+            filename = filename.rsplit('.', 1)[0] + '.gif'
         
         gif_path = self.output_dir / filename
         
         try:
-            # Convertir frames a RGB
+            # Procesar y convertir frames
             frames_rgb = []
-            for frame in self.gif_buffer:
-                frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            for frame in frames:
+                processed_frame = self._process_frame_for_gif(frame)
+                frame_rgb = cv2.cvtColor(processed_frame, cv2.COLOR_BGR2RGB)
                 frames_rgb.append(frame_rgb)
             
             # Crear GIF
@@ -201,15 +273,21 @@ class Recorder:
                 str(gif_path),
                 frames_rgb,
                 fps=self.gif_fps,
-                quality=self.gif_quality
+                quantizer='nq' if self.optimize_gif else 'wu',
+                palettesize=256 if self.reduce_colors else 256,
+                subrectangles=self.optimize_gif
             )
             
             self.gifs_created += 1
-            print(f"🎞️ GIF creado: {filename}")
+            file_size = gif_path.stat().st_size / 1024 / 1024  # MB
+            
+            print(f"🎞️ GIF personalizado creado: {filename}")
+            print(f"   📊 {len(frames)} frames | {file_size:.1f}MB")
+            
             return str(gif_path)
             
         except Exception as e:
-            print(f"❌ Error creando GIF: {e}")
+            print(f"❌ Error creando GIF personalizado: {e}")
             return None
     
     def auto_record_frame(self, frame: np.ndarray, num_objects: int) -> None:
@@ -240,9 +318,9 @@ class Recorder:
     def _start_auto_recording(self) -> None:
         """Inicia grabación automática."""
         timestamp = time.strftime("%Y%m%d_%H%M%S")
-        filename = f"auto_recording_{timestamp}.mp4"
+        filename = f"auto_recording_{timestamp}.gif"
         
-        if self.start_video_recording(filename):
+        if self.start_recording(filename):
             print("🤖 Auto-grabación iniciada")
             
             # Grabar frames del buffer previo
@@ -252,158 +330,74 @@ class Recorder:
     
     def _stop_auto_recording(self) -> None:
         """Detiene grabación automática."""
-        video_path = self.stop_video_recording()
-        if video_path:
+        gif_path = self.stop_recording()
+        if gif_path:
             print("🤖 Auto-grabación completada")
-            
-            # Crear GIF automáticamente
-            threading.Thread(
-                target=self._create_auto_gif,
-                args=(video_path,),
-                daemon=True
-            ).start()
     
-    def _create_auto_gif(self, video_path: str) -> None:
+    def create_highlights_gif(self, source_gifs: List[str], output_name: Optional[str] = None) -> Optional[str]:
         """
-        Crea un GIF automáticamente de un video.
+        Crea un GIF resumen con highlights de múltiples GIFs.
         
         Args:
-            video_path: Ruta del video
-        """
-        try:
-            # Obtener nombre base sin extensión
-            video_name = Path(video_path).stem
-            gif_name = f"{video_name}.gif"
-            
-            self.create_gif_from_buffer(gif_name)
-            
-        except Exception as e:
-            print(f"❌ Error creando GIF automático: {e}")
-    
-    def create_gif_from_video(self, video_path: str, start_time: float = 0, duration: Optional[float] = None) -> Optional[str]:
-        """
-        Crea un GIF desde un archivo de video existente.
-        
-        Args:
-            video_path: Ruta del video
-            start_time: Tiempo de inicio en segundos
-            duration: Duración en segundos (None = hasta el final)
-            
-        Returns:
-            Ruta del GIF creado o None si hubo error
-        """
-        if not IMAGEIO_AVAILABLE:
-            print("❌ imageio no disponible")
-            return None
-        
-        try:
-            # Abrir video
-            cap = cv2.VideoCapture(video_path)
-            if not cap.isOpened():
-                print(f"❌ No se pudo abrir el video: {video_path}")
-                return None
-            
-            fps = cap.get(cv2.CAP_PROP_FPS)
-            total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-            
-            # Calcular frames a extraer
-            start_frame = int(start_time * fps)
-            if duration is not None:
-                end_frame = int((start_time + duration) * fps)
-            else:
-                end_frame = total_frames
-            
-            # Extraer frames
-            frames = []
-            cap.set(cv2.CAP_PROP_POS_FRAMES, start_frame)
-            
-            frame_step = max(1, int(fps / self.gif_fps))
-            
-            for frame_num in range(start_frame, min(end_frame, total_frames), frame_step):
-                ret, frame = cap.read()
-                if not ret:
-                    break
-                
-                # Redimensionar y convertir a RGB
-                frame_resized = cv2.resize(frame, (640, 360))
-                frame_rgb = cv2.cvtColor(frame_resized, cv2.COLOR_BGR2RGB)
-                frames.append(frame_rgb)
-            
-            cap.release()
-            
-            if not frames:
-                print("⚠️ No se extrajeron frames del video")
-                return None
-            
-            # Crear GIF
-            video_name = Path(video_path).stem
-            gif_name = f"{video_name}_segment.gif"
-            gif_path = self.output_dir / gif_name
-            
-            imageio.mimsave(
-                str(gif_path),
-                frames,
-                fps=self.gif_fps,
-                quality=self.gif_quality
-            )
-            
-            print(f"🎞️ GIF creado desde video: {gif_name}")
-            return str(gif_path)
-            
-        except Exception as e:
-            print(f"❌ Error creando GIF desde video: {e}")
-            return None
-    
-    def create_highlights_reel(self, video_paths: List[str], output_name: Optional[str] = None) -> Optional[str]:
-        """
-        Crea un video resumen con los highlights.
-        
-        Args:
-            video_paths: Lista de rutas de videos
+            source_gifs: Lista de rutas de GIFs fuente
             output_name: Nombre del archivo de salida
             
         Returns:
-            Ruta del video resumen o None si hubo error
+            Ruta del GIF resumen o None si hubo error
         """
-        if not video_paths:
+        if not IMAGEIO_AVAILABLE or not source_gifs:
             return None
         
         if output_name is None:
             timestamp = time.strftime("%Y%m%d_%H%M%S")
-            output_name = f"highlights_reel_{timestamp}.mp4"
+            output_name = f"highlights_{timestamp}.gif"
+        
+        # Asegurar extensión .gif
+        if not output_name.endswith('.gif'):
+            output_name = output_name.rsplit('.', 1)[0] + '.gif'
         
         output_path = self.output_dir / output_name
         
         try:
-            # Obtener propiedades del primer video
-            first_cap = cv2.VideoCapture(video_paths[0])
-            width = int(first_cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-            height = int(first_cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-            first_cap.release()
+            all_frames = []
             
-            # Crear writer
-            fourcc = cv2.VideoWriter_fourcc(*self.output_codec)
-            writer = cv2.VideoWriter(str(output_path), fourcc, self.output_fps, (width, height))
-            
-            # Procesar cada video
-            for video_path in video_paths:
-                cap = cv2.VideoCapture(video_path)
+            # Leer frames de cada GIF fuente
+            for gif_path in source_gifs:
+                if not Path(gif_path).exists():
+                    print(f"⚠️ GIF no encontrado: {gif_path}")
+                    continue
                 
-                while True:
-                    ret, frame = cap.read()
-                    if not ret:
-                        break
-                    
-                    writer.write(frame)
-                
-                cap.release()
+                try:
+                    gif_frames = imageio.mimread(gif_path)
+                    # Tomar solo algunos frames de cada GIF para el resumen
+                    sample_frames = gif_frames[::max(1, len(gif_frames) // 10)]  # Máximo 10 frames por GIF
+                    all_frames.extend(sample_frames)
+                except Exception as e:
+                    print(f"⚠️ Error leyendo {gif_path}: {e}")
+                    continue
             
-            writer.release()
-            print(f"🎬 Video resumen creado: {output_name}")
+            if not all_frames:
+                print("❌ No se pudieron leer frames de los GIFs fuente")
+                return None
+            
+            # Crear GIF resumen
+            imageio.mimsave(
+                str(output_path),
+                all_frames,
+                fps=self.gif_fps,
+                quantizer='nq' if self.optimize_gif else 'wu',
+                palettesize=256,
+                subrectangles=self.optimize_gif
+            )
+            
+            file_size = output_path.stat().st_size / 1024 / 1024  # MB
+            print(f"🎞️ GIF de highlights creado: {output_name}")
+            print(f"   📊 {len(all_frames)} frames | {file_size:.1f}MB")
+            
             return str(output_path)
             
         except Exception as e:
-            print(f"❌ Error creando video resumen: {e}")
+            print(f"❌ Error creando GIF de highlights: {e}")
             return None
     
     def get_statistics(self) -> dict:
@@ -414,20 +408,32 @@ class Recorder:
             Diccionario con estadísticas
         """
         return {
-            'videos_created': self.videos_created,
             'gifs_created': self.gifs_created,
             'total_frames_recorded': self.total_frames_recorded,
             'is_recording': self.is_recording,
+            'current_buffer_size': len(self.recording_buffer) if self.is_recording else 0,
             'auto_record_enabled': self.auto_record_scenes,
-            'gif_buffer_size': len(self.gif_buffer),
-            'output_directory': str(self.output_dir)
+            'output_directory': str(self.output_dir),
+            'gif_settings': {
+                'fps': self.gif_fps,
+                'resolution': f"{self.gif_width}x{self.gif_height}",
+                'quality': self.gif_quality,
+                'optimize': self.optimize_gif,
+                'reduce_colors': self.reduce_colors
+            }
         }
     
     def cleanup(self) -> None:
-        """Limpia recursos y detiene grabaciones."""
+        """Limpia recursos del grabador."""
         if self.is_recording:
-            self.stop_video_recording()
+            print("🧹 Finalizando grabación en curso...")
+            self.stop_recording()
         
-        self.gif_buffer.clear()
+        self.recording_buffer.clear()
         self.auto_record_buffer.clear()
-        print("🧹 Grabador limpiado") 
+        
+        print("🧹 Grabador limpiado")
+
+
+# Alias para compatibilidad hacia atrás
+Recorder = GifRecorder 
