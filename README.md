@@ -134,11 +134,25 @@ Input → Taller 1 (Detección) → Taller 3 (Tracking) → Taller 4 (Métricas)
 - **Grabaciones automáticas**: `auto_recording_YYYYMMDD_HHMMSS.mp4`
 - **Grabaciones manuales**: `manual_HHMMSS.mp4`
 
-## 6. 🔧 Explicación Técnica del Funcionamiento
+## 6. 🎥 Enlace al Video
+
+> **📹 Video Demostrativo del Sistema**
+> 
+> **Enlace**: [Aquí colocar el enlace al video]
+> 
+> El video muestra:
+> - ✅ Funcionamiento completo del sistema en tiempo real
+> - ✅ Detección y seguimiento de múltiples objetos
+> - ✅ Cálculo de métricas de velocidad y distancia
+> - ✅ Visualización de trayectorias e información contextual
+> - ✅ Interfaz gráfica y controles del usuario
+> - ✅ Generación automática de GIFs y grabaciones
+
+## 7. 🔧 Explicación Técnica del Funcionamiento
 
 ### Componentes Principales
 
-#### 6.1 FrameReader (Lectura de Video)
+#### 7.1 FrameReader (Lectura de Video)
 ```python
 class FrameReader:
     def __init__(self, source, frame_width=None, frame_height=None):
@@ -151,7 +165,7 @@ class FrameReader:
 - Redimensionamiento automático de frames
 - Control de FPS y buffer de frames
 
-#### 6.2 Detector (YOLOv8)
+#### 7.2 Detector (YOLOv8)
 ```python
 class Detector:
     def __init__(self, model_path, confidence_threshold=0.5, device="cpu"):
@@ -165,7 +179,7 @@ class Detector:
 - Optimización GPU/CPU automática
 - NMS (Non-Maximum Suppression) configurable
 
-#### 6.3 Tracker (DeepSORT)
+#### 7.3 Tracker (DeepSORT)
 ```python
 class Tracker:
     def __init__(self, max_age=50, min_hits=3, iou_threshold=0.3):
@@ -179,7 +193,7 @@ class Tracker:
 - **Deep Features**: Características visuales para re-identificación
 - **Track Management**: Gestión del ciclo de vida de tracks
 
-#### 6.4 MetricsCalculator (Cálculo de Métricas)
+#### 7.4 MetricsCalculator (Cálculo de Métricas)
 ```python
 class MetricsCalculator:
     def __init__(self, pixels_per_meter=50, fps=30):
@@ -194,7 +208,7 @@ class MetricsCalculator:
 - **Aceleración**: `a = Δvelocity / Δtime`
 - **Índice de Suavidad**: Consistencia de la trayectoria
 
-#### 6.5 Visualizer (Renderizado)
+#### 7.5 Visualizer (Renderizado)
 ```python
 class Visualizer:
     def __init__(self, show_trajectory=True, trajectory_length=30):
@@ -209,7 +223,7 @@ class Visualizer:
 - **Métricas en Tiempo Real**: Velocidad, distancia, aceleración
 - **Estadísticas Globales**: FPS, objetos activos, resumen
 
-#### 6.6 Recorder (Grabación)
+#### 7.6 Recorder (Grabación)
 ```python
 class Recorder:
     def __init__(self, output_dir="output", auto_record=True):
@@ -287,7 +301,7 @@ recorder:
    - Generación de GIFs bajo demanda
    - Exportación de métricas
 
-## 7. 🚀 Instalación y Uso
+## 8. 🚀 Instalación y Uso
 
 ### Instalación
 
@@ -331,7 +345,7 @@ python gui_app.py
 - **G**: Crear GIF
 - **S**: Estadísticas
 
-## 8. 🏆 Conclusiones y Reflexiones Personales
+## 9. 🏆 Conclusiones y Reflexiones Personales
 
 ### Logros Técnicos Alcanzados
 
@@ -442,14 +456,3 @@ parcial-visual/
 └── README.md                    # Esta documentación
 ```
 
-## 🙏 Agradecimientos
-
-- **Ultralytics** por YOLOv8
-- **DeepSORT** por el algoritmo de tracking
-- **OpenCV** por las herramientas de visión por computador
-- **PySimpleGUI** por la interfaz gráfica
-- **Universidad Nacional de Colombia** por la formación académica
-
----
-
-**Desarrollado para el Parcial de Visual Computing** 🎓 
