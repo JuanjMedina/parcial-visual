@@ -1,0 +1,38 @@
+# Dependencias principales para detección y seguimiento de objetos
+torch>=1.12.0
+torchvision>=0.13.0
+ultralytics>=8.0.0          # YOLOv8
+opencv-python>=4.7.0        # Procesamiento de video e imágenes
+opencv-contrib-python>=4.7.0
+
+# Seguimiento (Tracking)
+deep-sort-realtime>=1.2.1   # DeepSORT para tracking
+scipy>=1.9.0                # Para cálculos científicos
+scikit-learn>=1.1.0         # Para algoritmos ML auxiliares
+
+# Interfaz gráfica y visualización
+PySimpleGUI>=4.60.0         # GUI para la aplicación
+matplotlib>=3.5.0           # Gráficos y visualización
+seaborn>=0.11.0             # Visualización estadística
+
+# Procesamiento de imágenes y métricas
+numpy>=1.21.0               # Operaciones numéricas
+pandas>=1.4.0               # Manejo de datos
+Pillow>=9.0.0               # Procesamiento de imágenes
+
+# Generación de GIFs y exportación
+imageio>=2.19.0             # Para crear GIFs
+imageio-ffmpeg>=0.4.7       # Codec para videos
+
+# Utilidades y configuración
+pyyaml>=6.0                 # Para archivos de configuración
+tqdm>=4.64.0                # Barras de progreso
+colorama>=0.4.4             # Colores en terminal
+argparse                    # Para argumentos de línea de comandos
+
+# Métricas y análisis
+filterpy>=1.4.5             # Filtros Kalman para tracking
+imutils>=0.5.4              # Utilidades OpenCV
+
+# Opcional: para mejores performancias
+# cupy-cuda11x>=11.0.0      # Aceleración GPU (descomentar si tienes CUDA) 

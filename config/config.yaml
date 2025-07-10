@@ -1,0 +1,108 @@
+# Configuración del Sistema de Detección y Seguimiento de Objetos
+# ================================================================
+
+# Configuración general
+general:
+  debug: false
+  verbose: true
+  output_dir: "output"
+  log_level: "INFO"
+
+# Configuración del detector YOLO
+detector:
+  model_path: "models/yolov8n.pt"  # yolov8n, yolov8s, yolov8m, yolov8l, yolov8x
+  confidence_threshold: 0.5
+  iou_threshold: 0.45
+  device: "cpu"  # "cpu" o "cuda" si tienes GPU
+  classes_to_detect: []  # Lista vacía = todas las clases, o [0, 1, 2] para clases específicas
+  input_size: [640, 640]  # Tamaño de entrada para YOLO
+
+# Configuración del tracker DeepSORT
+tracker:
+  max_age: 50  # Frames máximos sin detección antes de eliminar track
+  min_hits: 3  # Detecciones mínimas antes de confirmar track
+  iou_threshold: 0.3  # Umbral IoU para asociación
+  max_iou_distance: 0.7
+  max_cosine_distance: 0.2
+  nn_budget: 100
+
+# Configuración de métricas
+metrics:
+  # Calibración de píxeles a metros (debe ajustarse según la escena)
+  pixels_per_meter: 50  # Aproximadamente cuántos píxeles equivalen a 1 metro
+  fps: 30  # FPS del video para cálculo de velocidad
+  
+  # Ventana de tiempo para cálculo de velocidad promedio (en frames)
+  velocity_smoothing_window: 10
+  
+  # Distancia mínima para considerar movimiento (en píxeles)
+  min_movement_threshold: 5
+
+# Configuración del visualizador
+visualizer:
+  # Colores para bounding boxes (BGR)
+  bbox_colors:
+    - [255, 0, 0]     # Azul
+    - [0, 255, 0]     # Verde
+    - [0, 0, 255]     # Rojo
+    - [255, 255, 0]   # Cian
+    - [255, 0, 255]   # Magenta
+    - [0, 255, 255]   # Amarillo
+  
+  # Configuración de texto
+  font_scale: 0.6
+  font_thickness: 2
+  
+  # Configuración de trayectorias
+  show_trajectory: true
+  trajectory_length: 30  # Número de puntos a mostrar en la trayectoria
+  trajectory_thickness: 2
+  
+  # Información a mostrar
+  show_id: true
+  show_class: true
+  show_confidence: true
+  show_velocity: true
+  show_distance: true
+
+# Configuración del lector de frames
+frame_reader:
+  # Configuración para cámara
+  camera_id: 0  # ID de la cámara (0 = cámara por defecto)
+  
+  # Configuración para video
+  video_path: "data/input_video.mp4"
+  
+  # Opciones de procesamiento
+  resize_frame: true
+  frame_width: 1280
+  frame_height: 720
+  skip_frames: 0  # Saltar cada N frames para procesar más rápido
+
+# Configuración del grabador de GIFs
+recorder:
+  # Configuración de GIF
+  gif_duration: 5.0  # Duración en segundos
+  gif_fps: 10
+  gif_quality: 80  # Calidad de compresión (1-100)
+  
+  # Configuración de video output
+  output_fps: 30
+  output_codec: "mp4v"
+  
+  # Auto-grabado
+  auto_record_interesting_scenes: true
+  min_objects_for_recording: 2  # Mínimo de objetos para empezar grabación automática
+
+# Configuración de la interfaz GUI
+gui:
+  window_title: "Sistema de Detección y Seguimiento de Objetos"
+  window_size: [1200, 800]
+  theme: "DarkBlue3"
+  
+  # Configuración de controles
+  show_controls: true
+  control_panel_width: 300
+  
+  # Actualización de display
+  display_update_ms: 33  # ~30 FPS para la interfaz 
