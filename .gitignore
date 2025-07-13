@@ -138,13 +138,13 @@ data/*.mkv
 data/*.webm
 
 # Resultados generados
-output/*.mp4
-output/*.avi
-output/*.gif
-output/*.png
-output/*.jpg
-output/*.csv
-output/*.json
+# output/*.mp4
+# output/*.avi
+# output/*.gif
+# output/*.png
+# output/*.jpg
+# output/*.csv
+# output/*.json
 
 # Logs del sistema
 *.log
