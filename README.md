@@ -135,25 +135,25 @@ El sistema genera automáticamente diversos tipos de archivos de video y GIFs du
 #### 📁 Ejemplos de Videos Generados (carpeta `output/`)
 
 - **Sesión Final Completa**: 
-  - `session_final.gif` (18MB) - Resumen completo de toda la sesión de análisis
+`session_final.gif` (18MB) - Resumen completo de toda la sesión de análisis
 
 ![Sesión Final Completa](output/session_final.gif)
 
 - **Grabaciones Automáticas**:
-  - `auto_recording_20250712_193428.gif` (5.0MB) - Grabación automática de escena interesante
+  - auto_recording_20250712_193428.gif (5.0MB) - Grabación automática de escena interesante
 
 ![Grabación Automática 1](output/auto_recording_20250712_193428.gif)
 
-  - `auto_recording_20250712_193301.gif` (6.0MB) - Detección automática de múltiples objetos  
+  - auto_recording_20250712_193301.gif (6.0MB) - Detección automática de múltiples objetos
 
 ![Grabación Automática 2](output/auto_recording_20250712_193301.gif)
 
-  - `auto_recording_20250712_193047.gif` (5.2MB) - Seguimiento de objetos en movimiento
+  - auto_recording_20250712_193047.gif (5.2MB) - Seguimiento de objetos en movimiento
 
 ![Grabación Automática 3](output/auto_recording_20250712_193047.gif)
 
 - **Grabaciones Personalizadas**:
-  - `custom_gif_20250712_193135.gif` (25MB) - GIF personalizado con configuración específica
+  - custom_gif_20250712_193135.gif (25MB) - GIF personalizado con configuración específica
 
 ![GIF Personalizado](output/custom_gif_20250712_193135.gif)
 
