@@ -397,7 +397,7 @@ class Visualizer:
         scale: float = None,
         bg_alpha: float = 0.7
     ) -> None:
-        """
+        """obs
         Dibuja texto con fondo semi-transparente.
         
         Args:
