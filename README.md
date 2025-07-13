@@ -460,7 +460,6 @@ Este proyecto me ha permitido comprender la complejidad y potencial de los siste
    - Interés en explorar técnicas más avanzadas de deep learning para tracking
    - Motivación para aplicar estos conocimientos en proyectos de investigación
    - Comprensión del potencial de la visión por computador en aplicaciones reales
-
 ---
 
 ## 📁 Estructura del Proyecto
